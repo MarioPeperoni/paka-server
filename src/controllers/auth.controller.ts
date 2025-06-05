@@ -30,7 +30,6 @@ export const registerCourier = async (req: Request, res: Response) => {
 
     res.status(201).json({
       courier: { id: courier.id, name: courier.name, email: courier.email },
-      token,
     });
   } catch (err) {
     console.error('Courier registration error:', err);

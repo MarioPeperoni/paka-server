@@ -144,7 +144,7 @@ export const updateDeliveryStatus = async (req: Request, res: Response) => {
   try {
     let delivery;
 
-    if (status === 'left_parcel') {
+    if (status === 'parcel-left') {
       const imageUrl = await uploadImageToAzure(req);
 
       delivery = await prisma.delivery.update({
