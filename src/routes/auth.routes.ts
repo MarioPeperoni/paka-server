@@ -6,6 +6,7 @@ const authController = require('../controllers/auth.controller');
 
 router.post('/register', authController.registerCourier);
 router.post('/login', authController.loginCourier);
+router.post('/login/admin', authController.loginAdmin);
 router.get('/me', courierAuth, authController.getCurrentCourier);
 
 export default router;
