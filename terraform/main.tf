@@ -57,6 +57,13 @@ resource "azurerm_mssql_firewall_rule" "allow_all_ips" {
   end_ip_address   = "255.255.255.255"
 }
 
+resource "azurerm_maps_account" "maps-account" {
+  name                = "pakaappmaps"
+  resource_group_name = azurerm_resource_group.resource-group.name
+  location            = "northeurope"
+  sku_name            = "G2"
+}
+
 output "sql_connection_string" {
   value     = "sqlserver://${azurerm_mssql_server.mssql-server.fully_qualified_domain_name};database=${azurerm_mssql_database.mssql-database.name};user=${azurerm_mssql_server.mssql-server.administrator_login};password=${azurerm_mssql_server.mssql-server.administrator_login_password};encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;"
   sensitive = true
@@ -64,5 +71,10 @@ output "sql_connection_string" {
 
 output "blob_storage_connection_string" {
   value     = azurerm_storage_account.storage-account.primary_connection_string
+  sensitive = true
+}
+
+output "maps_accout_key" {
+  value     = azurerm_maps_account.maps-account.primary_access_key
   sensitive = true
 }

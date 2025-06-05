@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 import prisma from '../config/db';
 import { uploadImageToAzure } from './image.controller';
+import { getCoordinates, getRoute } from '../utils/geo';
 
 export const getAllDeliveries = async (req: Request, res: Response) => {
   try {
@@ -39,8 +40,8 @@ export const getDeliveryById = async (req: Request, res: Response) => {
   }
 };
 
-export const getDeliveriesByCourierId = async (req: Request, res: Response) => {
-  const { courierId } = req.params;
+export const getCourierDeliveries = async (req: Request, res: Response) => {
+  const courierId = (req as any).courierId;
   try {
     const deliveries = await prisma.delivery.findMany({
       where: { courierId: Number(courierId) },
@@ -49,9 +50,30 @@ export const getDeliveriesByCourierId = async (req: Request, res: Response) => {
         parcels: true,
         image: true,
       },
+      orderBy: { index: 'asc' },
     });
-    if (deliveries.length === 0)
-      return res.status(404).json({ error: 'No deliveries found for this courier' });
+
+    // Check if any of the indexes are null
+    const hasNullIndex = deliveries.some((delivery) => delivery.index === -1);
+
+    if (hasNullIndex) {
+      const updatedDeliveries = await getRoute(deliveries);
+
+      await Promise.all(
+        updatedDeliveries.map((delivery) =>
+          prisma.delivery.update({
+            where: { id: delivery.id },
+            data: { index: delivery.index },
+          })
+        )
+      );
+
+      const sortedDeliveries = updatedDeliveries.sort((a, b) => a.index - b.index);
+
+      res.json(sortedDeliveries);
+      return;
+    }
+
     res.json(deliveries);
   } catch (err) {
     console.error('Error fetching deliveries for courier:', err);
@@ -61,12 +83,22 @@ export const getDeliveriesByCourierId = async (req: Request, res: Response) => {
 
 export const createDelivery = async (req: Request, res: Response) => {
   const data = req.body;
-  const coordinateX = 40.7128; // Example coordinate X
-  const coordinateY = -74.006; // Example coordinate Y
+
+  const { courierId, address1, address2, postalCode, city, country } = data;
+
+  const { coordinateX, coordinateY } = await getCoordinates(
+    `${address1}, ${postalCode}, ${city}, ${country}`
+  );
+
   try {
     const delivery = await prisma.delivery.create({
       data: {
-        ...data,
+        courier: { connect: { id: Number(courierId) } },
+        address1,
+        address2,
+        postalCode,
+        city,
+        country,
         coordinateX,
         coordinateY,
       },

@@ -28,6 +28,7 @@ model Delivery {
   id     Int      @id @default(autoincrement())
   status String   @default("pending")
   date   DateTime @default(now())
+  index  Int      @default(-1)
 
   address1   String
   address2   String?

@@ -77,3 +77,17 @@ export const getCurrentCourier = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const loginAdmin = async (req: Request, res: Response) => {
+  const { login, password } = req.body;
+  if (login !== process.env.ADMIN_LOGIN || password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  try {
+    const token = jwt.sign({ isAdmin: true }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token });
+  } catch (err) {
+    console.error('Admin login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
