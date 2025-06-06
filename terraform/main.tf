@@ -46,6 +46,22 @@ resource "azurerm_mssql_database" "mssql-database" {
   storage_account_type = "Local"
   zone_redundant       = false
 
+  create_mode = "Default"
+
+  auto_pause_delay_in_minutes = -1
+  min_capacity                = 0.5
+}
+
+resource "azurerm_mssql_database" "mssql-replica-database" {
+  server_id            = azurerm_mssql_server.mssql-server.id
+  name                 = "pakaappdb-replica"
+  sku_name             = "GP_S_Gen5_1"
+  storage_account_type = "Local"
+  zone_redundant       = false
+
+  create_mode                 = "Secondary"
+  creation_source_database_id = azurerm_mssql_database.mssql-database.id
+
   auto_pause_delay_in_minutes = -1
   min_capacity                = 0.5
 }
@@ -64,17 +80,109 @@ resource "azurerm_maps_account" "maps-account" {
   sku_name            = "G2"
 }
 
+resource "azurerm_container_registry" "container-registry" {
+  name                = "pakaappregistry"
+  resource_group_name = azurerm_resource_group.resource-group.name
+  location            = azurerm_resource_group.resource-group.location
+  sku                 = "Basic"
+  admin_enabled       = true
+}
+
+resource "azurerm_user_assigned_identity" "user-assigned-identity" {
+  name                = "pakaapp-identity"
+  resource_group_name = azurerm_resource_group.resource-group.name
+  location            = azurerm_resource_group.resource-group.location
+}
+
+resource "azurerm_role_assignment" "role-assignment" {
+  scope                = azurerm_resource_group.resource-group.id
+  role_definition_name = "acrpull"
+  principal_id         = azurerm_user_assigned_identity.user-assigned-identity.principal_id
+  depends_on           = [azurerm_user_assigned_identity.user-assigned-identity]
+}
+
+resource "azurerm_log_analytics_workspace" "log-analytics-workspace" {
+  name                = "pakaapp-log-analytics"
+  location            = azurerm_resource_group.resource-group.location
+  resource_group_name = azurerm_resource_group.resource-group.name
+  sku                 = "PerGB2018"
+}
+
+resource "azurerm_container_app_environment" "container-app-env" {
+  name                       = "pakaapp-env"
+  resource_group_name        = azurerm_resource_group.resource-group.name
+  location                   = azurerm_resource_group.resource-group.location
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.log-analytics-workspace.id
+}
+
+resource "azurerm_container_app" "container-app" {
+  name                         = "pakaapp-container"
+  resource_group_name          = azurerm_resource_group.resource-group.name
+  container_app_environment_id = azurerm_container_app_environment.container-app-env.id
+  revision_mode                = "Single"
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.user-assigned-identity.id]
+  }
+
+  ingress {
+    transport        = "auto"
+    target_port      = 3000
+    external_enabled = true
+    traffic_weight {
+      latest_revision = true
+      percentage      = 100
+    }
+  }
+
+  registry {
+    server               = azurerm_container_registry.container-registry.login_server
+    username             = azurerm_container_registry.container-registry.admin_username
+    password_secret_name = "registry-credentials"
+  }
+
+  secret {
+    name  = "registry-credentials"
+    value = azurerm_container_registry.container-registry.admin_password
+  }
+
+  template {
+    container {
+      name   = "pakaapp"
+      image  = "pakaappregistry.azurecr.io/pakaapp:latest"
+      cpu    = "0.5"
+      memory = "1Gi"
+      dynamic "env" {
+        for_each = local.env_vars
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+    }
+  }
+}
+
 output "sql_connection_string" {
-  value     = "sqlserver://${azurerm_mssql_server.mssql-server.fully_qualified_domain_name};database=${azurerm_mssql_database.mssql-database.name};user=${azurerm_mssql_server.mssql-server.administrator_login};password=${azurerm_mssql_server.mssql-server.administrator_login_password};encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;"
+  value     = local.env_vars.DATABASE_URL
   sensitive = true
 }
 
 output "blob_storage_connection_string" {
-  value     = azurerm_storage_account.storage-account.primary_connection_string
+  value     = local.env_vars.AZURE_STORAGE_CONNECTION_STRING
   sensitive = true
 }
 
 output "maps_accout_key" {
-  value     = azurerm_maps_account.maps-account.primary_access_key
+  value     = local.env_vars.AZURE_MAPS_KEY
   sensitive = true
+}
+
+output "container_registry_login_server" {
+  value = azurerm_container_registry.container-registry.login_server
+}
+
+output "container_app_url" {
+  value = azurerm_container_app.container-app.ingress[0].fqdn
 }
