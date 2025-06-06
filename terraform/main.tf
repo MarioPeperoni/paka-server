@@ -148,6 +148,8 @@ resource "azurerm_container_app" "container-app" {
   }
 
   template {
+    min_replicas = 1
+    max_replicas = 10
     container {
       name   = "pakaapp"
       image  = "pakaappregistry.azurecr.io/pakaapp:latest"
@@ -160,6 +162,10 @@ resource "azurerm_container_app" "container-app" {
           value = env.value
         }
       }
+    }
+    http_scale_rule {
+      name                = "http-scale-rule"
+      concurrent_requests = 100
     }
   }
 }
