@@ -4,6 +4,8 @@ import prisma from '../config/db';
 import { uploadImageToAzure } from './image.controller';
 import { getCoordinates, getRoute } from '../utils/geo';
 
+import type { CreateDeliveryInput, UpdateDeliveryInput } from '../types/delivery';
+
 export const getAllDeliveries = async (req: Request, res: Response) => {
   try {
     const deliveries = await prisma.delivery.findMany({
@@ -26,7 +28,6 @@ export const getDeliveryById = async (req: Request, res: Response) => {
     const delivery = await prisma.delivery.findUnique({
       where: { id: Number(id) },
       include: {
-        courier: true,
         parcels: true,
         image: true,
       },
@@ -46,7 +47,6 @@ export const getCourierDeliveries = async (req: Request, res: Response) => {
     const deliveries = await prisma.delivery.findMany({
       where: { courierId: Number(courierId) },
       include: {
-        courier: true,
         parcels: true,
         image: true,
       },
@@ -82,27 +82,55 @@ export const getCourierDeliveries = async (req: Request, res: Response) => {
 };
 
 export const createDelivery = async (req: Request, res: Response) => {
-  const data = req.body;
+  const data: CreateDeliveryInput = req.body;
 
-  const { courierId, address1, address2, postalCode, city, country } = data;
+  if (
+    !data.courierId ||
+    !data.address1 ||
+    !data.postalCode ||
+    !data.city ||
+    !data.country ||
+    !data.parcel
+  ) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
 
-  const { coordinateX, coordinateY } = await getCoordinates(
-    `${address1}, ${postalCode}, ${city}, ${country}`
-  );
+  if (!Array.isArray(data.parcel)) {
+    return res.status(400).json({ error: 'Parcel must be an array' });
+  }
 
   try {
+    const addressString = `${data.address1}, ${data.postalCode}, ${data.city}, ${data.country}`;
+
+    const { coordinateX, coordinateY } = await getCoordinates(addressString);
+
+    if (!coordinateX || !coordinateY) {
+      return res.status(400).json({ error: 'Could not determine coordinates for the address' });
+    }
+
     const delivery = await prisma.delivery.create({
       data: {
-        courier: { connect: { id: Number(courierId) } },
-        address1,
-        address2,
-        postalCode,
-        city,
-        country,
+        courier: { connect: { id: Number(data.courierId) } },
+        address1: data.address1,
+        address2: data.address2,
+        postalCode: data.postalCode,
+        city: data.city,
+        country: data.country,
+        comment: data.comment,
         coordinateX,
         coordinateY,
+        parcels: {
+          create: data.parcel.map((parcel) => ({
+            weight: parcel.weight,
+            dimensions: parcel.dimensions,
+          })),
+        },
+      },
+      include: {
+        parcels: true,
       },
     });
+
     res.status(201).json(delivery);
   } catch (err) {
     console.error('Error creating delivery:', err);
@@ -112,12 +140,29 @@ export const createDelivery = async (req: Request, res: Response) => {
 
 export const updateDelivery = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const data = req.body;
+  const data: UpdateDeliveryInput = req.body;
+
+  if (!data || Object.keys(data).length === 0) {
+    return res.status(400).json({ error: 'No update data provided' });
+  }
+
+  if (data.status && !['in-progress', 'delivered', 'parcel-left'].includes(data.status)) {
+    return res.status(400).json({ error: 'Invalid status value' });
+  }
 
   try {
     const delivery = await prisma.delivery.update({
       where: { id: Number(id) },
-      data,
+      data: {
+        status: data.status,
+        address1: data.address1,
+        address2: data.address2,
+        postalCode: data.postalCode,
+        city: data.city,
+        country: data.country,
+        comment: data.comment,
+        courierId: data.courierId ? Number(data.courierId) : undefined,
+      },
     });
     res.json(delivery);
   } catch (err) {

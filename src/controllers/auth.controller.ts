@@ -10,18 +10,18 @@ const generateToken = (courierId: number) => {
 };
 
 export const registerCourier = async (req: Request, res: Response) => {
-  const { name, email, password } = req.body;
+  const { username, password } = req.body;
 
   try {
-    const existing = await prisma.courier.findUnique({ where: { email } });
-    if (existing) return res.status(400).json({ error: 'Email already registered' });
+    const existing = await prisma.courier.findUnique({ where: { username } });
+    if (existing)
+      return res.status(400).json({ error: 'User with this username is already registered.' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const courier = await prisma.courier.create({
       data: {
-        name,
-        email,
+        username,
         hashedPassword,
       },
     });
@@ -29,7 +29,7 @@ export const registerCourier = async (req: Request, res: Response) => {
     const token = generateToken(courier.id);
 
     res.status(201).json({
-      courier: { id: courier.id, name: courier.name, email: courier.email },
+      courier: { id: courier.id, username: courier.username },
     });
   } catch (err) {
     console.error('Courier registration error:', err);
@@ -38,10 +38,10 @@ export const registerCourier = async (req: Request, res: Response) => {
 };
 
 export const loginCourier = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { username, password } = req.body;
 
   try {
-    const courier = await prisma.courier.findUnique({ where: { email } });
+    const courier = await prisma.courier.findUnique({ where: { username } });
     if (!courier) return res.status(401).json({ error: 'Invalid credentials' });
 
     const match = await bcrypt.compare(password, courier.hashedPassword);
@@ -50,7 +50,7 @@ export const loginCourier = async (req: Request, res: Response) => {
     const token = generateToken(courier.id);
 
     res.json({
-      courier: { id: courier.id, name: courier.name, email: courier.email },
+      courier: { id: courier.id, username: courier.username },
       token,
     });
   } catch (err) {
@@ -65,7 +65,7 @@ export const getCurrentCourier = async (req: Request, res: Response) => {
   try {
     const courier = await prisma.courier.findUnique({
       where: { id: courierId },
-      select: { id: true, name: true, email: true },
+      select: { id: true, username: true },
     });
 
     if (!courier) return res.status(404).json({ error: 'Courier not found' });
