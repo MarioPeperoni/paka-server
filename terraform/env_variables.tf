@@ -2,7 +2,7 @@ locals {
   env_vars = {
     DATABASE_URL                    = "sqlserver://${azurerm_mssql_server.mssql-server.fully_qualified_domain_name};database=${azurerm_mssql_database.mssql-database.name};user=${azurerm_mssql_server.mssql-server.administrator_login};password=${azurerm_mssql_server.mssql-server.administrator_login_password};encrypt=true;trustServerCertificate=true;"
     AZURE_STORAGE_CONNECTION_STRING = azurerm_storage_account.storage-account.primary_connection_string
-    AZURE_MAPS_KEY                  = azurerm_maps_account.maps-account.primary_access_key
+    AZURE_MAPS_API_KEY              = azurerm_maps_account.maps-account.primary_access_key
     JWT_SECRET                      = var.JWT_SECRET
     ADMIN_LOGIN                     = var.ADMIN_LOGIN
     ADMIN_PASSWORD                  = var.ADMIN_PASSWORD

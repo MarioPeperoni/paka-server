@@ -45,7 +45,10 @@ export const getCourierDeliveries = async (req: Request, res: Response) => {
   const courierId = (req as any).courierId;
   try {
     const deliveries = await prisma.delivery.findMany({
-      where: { courierId: Number(courierId) },
+      where: {
+        courierId: Number(courierId),
+        NOT: [{ status: 'completed' }, { status: 'parcel-left' }],
+      },
       include: {
         parcels: true,
         image: true,
@@ -182,20 +185,20 @@ export const deleteDelivery = async (req: Request, res: Response) => {
   }
 };
 
-export const updateDeliveryStatus = async (req: Request, res: Response) => {
+export const deliver = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { image } = req.body;
 
   try {
     let delivery;
 
-    if (status === 'parcel-left') {
+    if (image) {
       const imageUrl = await uploadImageToAzure(req);
 
       delivery = await prisma.delivery.update({
         where: { id: Number(id) },
         data: {
-          status,
+          status: 'parcel-left',
           image: {
             upsert: {
               create: { url: imageUrl },
@@ -208,7 +211,7 @@ export const updateDeliveryStatus = async (req: Request, res: Response) => {
     } else {
       delivery = await prisma.delivery.update({
         where: { id: Number(id) },
-        data: { status },
+        data: { status: 'completed' },
       });
     }
 

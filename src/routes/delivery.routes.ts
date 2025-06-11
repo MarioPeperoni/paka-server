@@ -16,12 +16,7 @@ router.post('/', adminAuth, deliveryController.createDelivery);
 router.post('/:id/parcel', adminAuth, parcelController.addParcelToDelivery);
 
 router.put('/:id', adminAuth, deliveryController.updateDelivery);
-router.put(
-  '/:id/deliver',
-  courierAuth,
-  upload.single('image'),
-  deliveryController.updateDeliveryStatus
-);
+router.put('/:id/deliver', courierAuth, upload.single('image'), deliveryController.deliver);
 router.put('/:deliveryId/parcel/:parcelId', adminAuth, parcelController.editParcelInDelivery);
 
 router.delete('/:id', adminAuth, deliveryController.deleteDelivery);
