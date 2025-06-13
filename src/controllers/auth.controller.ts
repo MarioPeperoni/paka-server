@@ -26,8 +26,6 @@ export const registerCourier = async (req: Request, res: Response) => {
       },
     });
 
-    const token = generateToken(courier.id);
-
     res.status(201).json({
       courier: { id: courier.id, username: courier.username },
     });

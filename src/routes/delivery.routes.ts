@@ -9,7 +9,7 @@ const parcelController = require('../controllers/parcel.controller');
 
 router.get('/all', adminAuth, deliveryController.getAllDeliveries);
 router.get('/', courierAuth, deliveryController.getCourierDeliveries);
-router.get('/id/:id', adminAuth, deliveryController.getDeliveryById);
+router.get('/id/:id', courierAuth, deliveryController.getDeliveryById);
 router.get('/parcel/:id', adminAuth, parcelController.getAllParcelsInDelivery);
 
 router.post('/', adminAuth, deliveryController.createDelivery);

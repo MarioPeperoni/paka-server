@@ -24,6 +24,10 @@ export const getAllDeliveries = async (req: Request, res: Response) => {
 
 export const getDeliveryById = async (req: Request, res: Response) => {
   const { id } = req.params;
+
+  const isAdmin = (req as any).isAdmin;
+  const courierId = (req as any).courierId;
+
   try {
     const delivery = await prisma.delivery.findUnique({
       where: { id: Number(id) },
@@ -34,6 +38,11 @@ export const getDeliveryById = async (req: Request, res: Response) => {
     });
 
     if (!delivery) return res.status(404).json({ error: 'Delivery not found' });
+
+    if (!isAdmin && delivery.courierId !== Number(courierId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     res.json(delivery);
   } catch (err) {
     console.error('Error fetching delivery:', err);
@@ -188,6 +197,19 @@ export const deleteDelivery = async (req: Request, res: Response) => {
 export const deliver = async (req: Request, res: Response) => {
   const { id } = req.params;
   const imageUrl = await uploadImageToAzure(req);
+
+  // If delivery has already been completed or parcel left, return an error
+  const existingDelivery = await prisma.delivery.findFirst({
+    where: {
+      id: Number(id),
+      status: { in: ['completed', 'parcel-left'] },
+    },
+    select: { status: true },
+  });
+
+  if (existingDelivery) {
+    return res.status(409).json({ error: 'Delivery already marked as completed' });
+  }
 
   try {
     let delivery;
