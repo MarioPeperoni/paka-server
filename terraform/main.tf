@@ -181,7 +181,7 @@ output "blob_storage_connection_string" {
 }
 
 output "maps_accout_key" {
-  value     = local.env_vars.AZURE_MAPS_KEY
+  value     = local.env_vars.AZURE_MAPS_API_KEY
   sensitive = true
 }
 
