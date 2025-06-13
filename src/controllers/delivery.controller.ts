@@ -187,14 +187,12 @@ export const deleteDelivery = async (req: Request, res: Response) => {
 
 export const deliver = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { image } = req.body;
+  const imageUrl = await uploadImageToAzure(req);
 
   try {
     let delivery;
 
-    if (image) {
-      const imageUrl = await uploadImageToAzure(req);
-
+    if (imageUrl) {
       delivery = await prisma.delivery.update({
         where: { id: Number(id) },
         data: {

@@ -3,10 +3,10 @@ import { BlobServiceClient } from '@azure/storage-blob';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 
-export const uploadImageToAzure = async (req: Request): Promise<string> => {
+export const uploadImageToAzure = async (req: Request): Promise<string | null> => {
   const file = req.file;
 
-  if (!file) throw new Error('No file provided');
+  if (!file) return null;
 
   const blobServiceClient = BlobServiceClient.fromConnectionString(
     process.env.AZURE_STORAGE_CONNECTION_STRING || ''
