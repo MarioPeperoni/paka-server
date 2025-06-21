@@ -54,3 +54,6 @@ terraform.rc
 # .tfstate files
 *.tfstate
 *.tfstate.*
+terraform/tfplan
+terraform/secrets.tfvars
+backup/container_app.tf.backup
