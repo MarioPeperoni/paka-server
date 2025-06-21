@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import prisma from '../config/db';
 import { uploadImageToAzure } from './image.controller';
 import { getCoordinates, getRoute } from '../utils/geo';
+import { sendDeliveryAssignmentNotification } from '../utils/notification';
 
 import type { CreateDeliveryInput, UpdateDeliveryInput } from '../types/delivery';
 
@@ -140,8 +141,19 @@ export const createDelivery = async (req: Request, res: Response) => {
       },
       include: {
         parcels: true,
+        courier: true,
       },
     });
+
+    // Send notification to the courier about the new delivery assignment
+    if (delivery.courierId) {
+      const addressString = `${delivery.address1}, ${delivery.city}`;
+      await sendDeliveryAssignmentNotification(
+        delivery.courierId,
+        delivery.id,
+        addressString
+      );
+    }
 
     res.status(201).json(delivery);
   } catch (err) {
