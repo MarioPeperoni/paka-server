@@ -27,7 +27,7 @@ model Courier {
 
 model Delivery {
   id     Int      @id @default(autoincrement())
-  status String   @default("in-progress") // in progress, completed, 
+  status String   @default("in-progress") // in progress, completed
   date   DateTime @default(now())
   index  Int      @default(-1)
 
@@ -46,6 +46,9 @@ model Delivery {
 
   courierId Int?
   courier   Courier? @relation(fields: [courierId], references: [id])
+
+  deliveredGeoX Float?
+  deliveredGeoY Float?
 
   parcels Parcel[]
 

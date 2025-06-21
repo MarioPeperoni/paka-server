@@ -148,11 +148,7 @@ export const createDelivery = async (req: Request, res: Response) => {
     // Send notification to the courier about the new delivery assignment
     if (delivery.courierId) {
       const addressString = `${delivery.address1}, ${delivery.city}`;
-      await sendDeliveryAssignmentNotification(
-        delivery.courierId,
-        delivery.id,
-        addressString
-      );
+      await sendDeliveryAssignmentNotification(delivery.courierId, delivery.id, addressString);
     }
 
     res.status(201).json(delivery);
@@ -210,6 +206,17 @@ export const deliver = async (req: Request, res: Response) => {
   const { id } = req.params;
   const imageUrl = await uploadImageToAzure(req);
 
+  // Get coordinates from the request body
+  const { coordinateX, coordinateY } = req.body;
+
+  if (!coordinateX || !coordinateY) {
+    return res.status(400).json({ error: 'Missing coordinates' });
+  }
+
+  // Parse coordinates to float
+  const parsedCoordinateX = parseFloat(coordinateX);
+  const parsedCoordinateY = parseFloat(coordinateY);
+
   // If delivery has already been completed or parcel left, return an error
   const existingDelivery = await prisma.delivery.findFirst({
     where: {
@@ -231,6 +238,8 @@ export const deliver = async (req: Request, res: Response) => {
         where: { id: Number(id) },
         data: {
           status: 'parcel-left',
+          deliveredGeoX: parsedCoordinateX,
+          deliveredGeoY: parsedCoordinateY,
           image: {
             upsert: {
               create: { url: imageUrl },
@@ -243,7 +252,11 @@ export const deliver = async (req: Request, res: Response) => {
     } else {
       delivery = await prisma.delivery.update({
         where: { id: Number(id) },
-        data: { status: 'completed' },
+        data: {
+          status: 'completed',
+          deliveredGeoX: parsedCoordinateX,
+          deliveredGeoY: parsedCoordinateY,
+        },
       });
     }
 
